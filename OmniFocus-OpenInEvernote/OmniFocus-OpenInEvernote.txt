@@ -1,0 +1,158 @@
+-----------------------------------------------------------------------------------------------------------------
+--
+-- Simple script to create tag for OmniFocus group (and its project). Tag names are to be specified
+-- in square brackets.
+--
+-- Copyright © Ondrej Krajicek, ondrej.krajicek@ondrejkrajicek.com
+-- version 0.1
+--
+-- Public domain. If you find this useful, please mention my contribution.
+--
+-----------------------------------------------------------------------------------------------------------------
+
+set DEBUG to false
+
+-- Notebook to hold notes.
+set notebookName to "Projects"
+
+-- Parent tag to look for and create group / project tags bellow.
+set PARENT_TAG_NAME to "omnifocus"
+
+-- Name of the current task selected in OmniFocus.
+set currentTaskName to ""
+
+-- Parent Project Name.
+set parentProjectName to ""
+
+-- Name of the parent tag.
+set parentTag to missing value
+
+-- Name of the newly create tag.
+set ourTagName to ""
+
+-- Reference to the created tag.
+set ourTag to missing value
+
+tell application "OmniFocus"
+	-- Currently selected task (from: http://jeredb.com/a-better-delegated-omnifocus-applescript/)
+	tell front document
+		tell (first document window whose index is 1)
+			set theSelectedItems to selected trees of content
+			if ((count of theSelectedItems) < 1) then
+				display alert "You must first select a single task." message "Select a single task before running this script." as warning
+				return
+			end if
+			if ((count of theSelectedItems) > 1) then
+				display alert "You must select only one task." message "Select a single task before running this script." as warning
+				return
+			end if
+		end tell
+	end tell
+	
+	set theSelectedTask to value of item 1 of theSelectedItems
+	set currentTaskName to name of theSelectedTask
+	set parentProject to parent task of theSelectedTask
+	set parentProjectName to name of parentProject
+end tell
+
+-- Extract tag name from task name (should be in square brackets).
+set text item delimiters to {"[", "]"}
+try
+	set ourTagName to text item 2 of currentTaskName
+on error
+	set ourTagName to ""
+end try
+
+if (ourTagName is equal to "") then
+	display alert "No tag name specified." message "You need to specify tag name in square brackets." as warning
+	return
+end if
+
+-- Extract project tag name from project name. If project name does not contain […], the entire project name is used as tag name.
+set text item delimiters to {"[", "]"}
+try
+	set ourProjectName to text item 2 of parentProjectName
+on error
+	set ourProjectName to ""
+end try
+
+if (ourProjectName is equal to "") then
+	copy parentProjectName to ourProjectName
+end if
+set ourTagName to ourProjectName & "/" & ourTagName
+
+if (DEBUG) then
+	display dialog "The extracted project tag name is: " & ourProjectName & "."
+	display dialog "The extracted tag name is: " & ourTagName & "."
+end if
+
+--
+-- EVERNOTE MAGIC
+--
+tell application "Evernote"
+	-- Locate the tag.
+	try
+		set ourTag to tag named ourTagName
+	on error
+		set ourTag to missing value
+	end try
+	
+	if (ourTag is equal to missing value) then
+		if (DEBUG) then
+			display dialog "The tag: " & ourTagName & " has not been found."
+		end if
+		
+		-- Tag does not exist, we need to create it under parent tag.
+		set parentTag to tag named PARENT_TAG_NAME
+		
+		if (parentTag is equal to missing value) then
+			display alert "Parent tag not found." message "Parent tag: " & PARENT_TAG_NAME & " not found in Evernote." as warning
+			return
+		end if
+		
+		-- Create the tag under parentTag
+		try
+			set ourProjectTag to make tag with properties {name:ourProjectName, parent:tag named PARENT_TAG_NAME}
+		on error
+			-- The tag probably already exists.
+			try
+				set ourProjectTag to tag named ourProjectName
+				set parent of ourProjectTag to parentTag
+			on error
+				set ourProjectTag to missing value
+			end try
+		end try
+		set ourTag to make tag with properties {name:ourTagName, parent:ourProjectTag}
+	end if
+	
+	-- Check again for ourTag, should exist by now.
+	if (ourTag is equal to missing value) then
+		display alert "Invalid tag." message "The tag: " & ourTagName & " does not exist even though we have tried to create it."
+		return
+	end if
+	
+	-- Check whether there already are some notes. If not, ask an create the first one.
+	set ourNotes to find notes "tag:" & ourTagName
+	if (length of ourNotes is greater than 0) then
+		set question to display dialog "Do you want to create new note?" buttons {"Yes", "No"} default button 2
+		set query to button returned of question
+	else
+		set query to "Yes"
+	end if
+	
+	if (query is equal to "Yes") then
+		if (DEBUG) then
+			display dialog "Creating new note."
+		end if
+		
+		set {year:y, month:m, day:d} to (current date)
+		tell (y * 10000 + m * 100 + d) as string to text 1 thru 4 & "-" & text 5 thru 6 & "-" & text 7 thru 8
+		set currentDateText to result
+		set ourNewNote to create note with text "New note for OmniFocus project: " & ourTagName title currentDateText & ": New Empty Note!" tags ourTag notebook notebookName
+	end if
+	
+	-- Open the note collection for the tag.
+	set collWindow to open collection window with query string "tag:" & ourTagName
+	set visible of collWindow to true
+	activate
+end tell

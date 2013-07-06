@@ -1,0 +1,26 @@
+OmniFocus-OpenInEvernote.scpt
+Version 0.1
+$id$
+
+A simple script to propagate projects / groups from OmniFocus as tags in
+Evernote.
+
+The goal is to enable tracking notes, such as meeting minutes or thoughts /
+ideas in Evernote in relation to particular Projects or Groups in OmniFocus.
+When the script is executed, it does this:
+
+1. Determines the currently selected task in OmniFocus.
+2. Scans the task title to scan for a tag name in square brackets. If tag name
+is not found, the script terminates.
+
+Example:
+[project-tag] My Special Task Group -> leads to project-tag being created in
+Evernote
+
+3. Locates a parent task of the current task (possibly a project or a parent
+group) and scans it for a tag in square brackets. If no tag is found, the entire
+name is taken as the tag name.
+4. Creates tags for current task and its parent if they don't exist.
+5. Opens up Evernote and displays all notes associated with the tag.
+6. If there are no notes, it creates a new one. If there are already some notes,
+the script asks the user whether to create a new note or not.
