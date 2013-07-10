@@ -24,3 +24,8 @@ name is taken as the tag name.
 5. Opens up Evernote and displays all notes associated with the tag.
 6. If there are no notes, it creates a new one. If there are already some notes,
 the script asks the user whether to create a new note or not.
+
+To use the script in OmniFocus, place it in
+~/Library/Scripts/Applications/OmniFocus, rename it to whatever suits you (do
+not forget to use the .scpt extension) and place it to the toolbar in OmniFocus,
+so that it can be invoked conveniently.
